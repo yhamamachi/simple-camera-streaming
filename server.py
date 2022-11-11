@@ -1,65 +1,70 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """
-Kindle VNC Server 1.0
+Video streaming Server 1.0
 (c) 2016 Jerzy Glowacki
+(c) 2022 Yuya Hamamachi
 Apache 2.0 License
 """
 
-import SimpleHTTPServer
-import SocketServer
+# For Socket server
+import http.server
+import socketserver
 import socket
 import os
-import wx
+import cv2
 
-HOST = [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]
+#HOST = [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]
+HOST = "0.0.0.0"
 PORT = 5900
-FILENAME = '/dev/shm/frame.jpg'
 QUALITY = 50
-ROTATE = True
-GRAYSCALE = True
-OPTIMIZE = True
-W = 700
-H = 600
+ROTATE = False
+GRAYSCALE = False
+RESIZE = True
+OPTIMIZE = False
+W = 640
+H = 480
 X = 0
 Y = 0
+CAM_NUM = 0
+cap = cv2.VideoCapture(CAM_NUM)
 
-class VNCServer(SimpleHTTPServer.SimpleHTTPRequestHandler):
+class VNCServer(http.server.SimpleHTTPRequestHandler):
+    def server_bind(self):
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.bind(self.server_address)
+
     def getFrame(self):
-        app = wx.PySimpleApp()
-        bmp = wx.EmptyBitmap(W, H, -1)
-        mem = wx.MemoryDC()
-        mem.SelectObject(bmp)
-        mem.Blit(0, 0, W, H, wx.ScreenDC(), X, Y)
-        mem.SelectObject(wx.NullBitmap)
-        img = wx.ImageFromBitmap(bmp)
+        _, output = cap.read()
         if GRAYSCALE:
-            img = img.ConvertToGreyscale()
+            output = cv2.cvtColor(output,cv2.COLOR_RGB2GRAY)
         if ROTATE:
-            img = img.Rotate90()
-        img.SetOptionInt(wx.IMAGE_OPTION_QUALITY, QUALITY)
-        img.SaveFile(FILENAME, wx.BITMAP_TYPE_JPEG)
-        if OPTIMIZE:
-            os.system('jpegtran -optimize -progressive ' + ('', '-grayscale ')[GRAYSCALE] + '-copy none -outfile ' + FILENAME + ' ' + FILENAME)
+            output = cv2.rotate(output, cv2.ROTATE_90_CLOCKWISE)
+        if RESIZE:
+            output = cv2.resize(output, dsize=(W,H) )
+        return output
+
     def do_GET(self):
         self.path = self.path.split('?')[0]
         if self.path == '/frame.jpg':
-            self.getFrame()
-            with open(FILENAME, 'rb') as frame:
-                self.send_response(200)
-                self.send_header('Content-Type', 'image/jpeg')
-                self.end_headers()
-                self.wfile.write(frame.read())
+            cv_img = self.getFrame()
+            self.send_response(200)
+            self.send_header('Content-Type', 'image/jpeg')
+            self.end_headers()
+            _, enimg = cv2.imencode('.jpg', cv_img, (cv2.IMWRITE_JPEG_QUALITY, QUALITY))
+            self.wfile.write(enimg)
         else:
-            SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
+            http.server.SimpleHTTPRequestHandler.do_GET(self)
 
 if __name__ == '__main__':
-    httpd = SocketServer.TCPServer((HOST, PORT), VNCServer)
+    socketserver.TCPServer.allow_reuse_address = True
+    httpd = socketserver.TCPServer((HOST, PORT), VNCServer)
     httpd.allow_reuse_address = True
-    print 'Kindle VNC Server started at http://%s:%s' % (HOST, PORT)
+    print('Kindle VNC Server started at http://%s:%s' % (HOST, PORT))
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
        pass
     httpd.server_close()
-    print 'Server stopped'
+    print('Server stopped')
+
