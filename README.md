@@ -1,17 +1,16 @@
-Kindle VNC Server & Client
+Video Straming Server & Client
 =======================
 
-Simple VNC-like server and client for Kindle 3+ using plain old HTML. However, it does not use the RFB protocol, but a series of JPEG frames.
+Simple server and client using plain old HTML. However, it does not use the RFB protocol, but a series of JPEG frames.
 
 ## Requirements
 
- - Python 2
- - wxPython
- - jpegtran (optional)
+ - Python 3
+ - python-opencv
 
 ## Usage
 
-Run `./server.py` and connect to `http://[local_address]:5900` using your Kindle's web browser. For configuration options look at the top of the `server.py` file.
+Run `python3 ./server.py` and connect to `http://[local_address]:5900` using your web browser. For configuration options look at the top of the `server.py` file.
 
 ## Screenshot
 
@@ -19,4 +18,7 @@ Run `./server.py` and connect to `http://[local_address]:5900` using your Kindle
 
 ## Author
 
-Developed by Jerzy Głowacki under Apache 2.0 License
+Original Developed by Jerzy Głowacki under Apache 2.0 License
+
+Modified for video streaming and supporting python3 by Yuya Hamamachi
+
