@@ -12,6 +12,11 @@ Simple server and client using plain old HTML. However, it does not use the RFB 
 
 Run `python3 ./server.py` and connect to `http://[local_address]:5900` using your web browser. For configuration options look at the top of the `server.py` file.
 
+### test-server
+
+This is made for only streaming test without video device(ex. USB camera).
+Usage is same as original server.py.
+
 ## Screenshot
 
 ![Preview of Kindle VNC Client](http://i.imgur.com/pKdzviw.jpg)
