@@ -83,6 +83,13 @@ class VNCServer(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             _, enimg = cv2.imencode('.bmp', cv_img)
             self.wfile.write(enimg)
+        elif self.path == '/frame.png':
+            cv_img = self.getFrame()
+            self.send_response(200)
+            self.send_header('Content-Type', 'image/png')
+            self.end_headers()
+            _, enimg = cv2.imencode('.png', cv_img)
+            self.wfile.write(enimg)
         else:
             http.server.SimpleHTTPRequestHandler.do_GET(self)
 
