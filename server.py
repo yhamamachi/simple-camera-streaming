@@ -29,6 +29,10 @@ Y = 0
 CAM_NUM = 0
 cap = cv2.VideoCapture(CAM_NUM)
 
+counter = 0
+prev_sec = 0
+sec = 0
+
 class VNCServer(http.server.SimpleHTTPRequestHandler):
     def server_bind(self):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -45,6 +49,8 @@ class VNCServer(http.server.SimpleHTTPRequestHandler):
         return output
 
     def do_GET(self):
+        global counter
+        global prev_sec
         self.path = self.path.split('?')[0]
         if self.path == '/frame.jpg':
             cv_img = self.getFrame()
@@ -69,6 +75,15 @@ class VNCServer(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(enimg)
         else:
             http.server.SimpleHTTPRequestHandler.do_GET(self)
+        # Framerate
+        import datetime
+        sec=datetime.datetime.today().time().second
+        if prev_sec == sec:
+            counter+=1
+        else:
+            print("FPS: ", counter)
+            counter = 1
+        prev_sec=sec
 
 if __name__ == '__main__':
     socketserver.TCPServer.allow_reuse_address = True
