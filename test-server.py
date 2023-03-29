@@ -18,7 +18,7 @@ import datetime
 
 #HOST = [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]
 HOST = "0.0.0.0"
-PORT = 5900
+PORT = int(os.environ.get("PORT")) if os.environ.get("PORT") is not None else 5900
 QUALITY = 50
 ROTATE = False
 GRAYSCALE = False
