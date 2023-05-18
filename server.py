@@ -12,6 +12,7 @@ import http.server
 import socketserver
 import socket
 import os
+import sys
 import cv2
 
 #HOST = [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]
@@ -27,11 +28,15 @@ H = 480
 X = 0
 Y = 0
 CAM_NUM = 0
+
 cap = cv2.VideoCapture(CAM_NUM)
 
+# FPS related variables
+SHOW_FPS_FLAG = True
 counter = 0
 prev_sec = 0
 sec = 0
+prev_fps = 0
 
 class VNCServer(http.server.SimpleHTTPRequestHandler):
     def server_bind(self):
@@ -46,11 +51,27 @@ class VNCServer(http.server.SimpleHTTPRequestHandler):
             output = cv2.rotate(output, cv2.ROTATE_90_CLOCKWISE)
         if RESIZE:
             output = cv2.resize(output, dsize=(W,H) )
+        if SHOW_FPS_FLAG is True:
+            # Write FPS in frame
+            global prev_fps
+            output_text = [
+                    "FPS: {}".format(prev_fps)
+            ]
+            text_color = (0,255,0) #( B,G,R ) => Green
+            for idx, text in enumerate(output_text):
+                text_scale = 2
+                xoffset = 20
+                yoffset = (idx+1) * 50*text_scale
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                thickness = 2
+                cv2.putText(output, text, (xoffset, yoffset)
+                        ,font ,text_scale ,text_color ,thickness ,cv2.LINE_AA)
         return output
 
     def do_GET(self):
         global counter
         global prev_sec
+        global prev_fps
         self.path = self.path.split('?')[0]
         if self.path == '/frame.jpg':
             cv_img = self.getFrame()
@@ -82,10 +103,14 @@ class VNCServer(http.server.SimpleHTTPRequestHandler):
             counter+=1
         else:
             print("FPS: ", counter)
+            prev_fps = counter
             counter = 1
         prev_sec=sec
 
 if __name__ == '__main__':
+    if "--no-fps" in sys.argv:
+        SHOW_FPS_FLAG = False
+
     socketserver.TCPServer.allow_reuse_address = True
     httpd = socketserver.TCPServer((HOST, PORT), VNCServer)
     httpd.allow_reuse_address = True
