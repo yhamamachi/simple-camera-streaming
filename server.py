@@ -139,6 +139,22 @@ class VNCServer(http.server.SimpleHTTPRequestHandler):
             else:
                 _, enimg = cv2.imencode('.'+ext, cv_img)
             self.wfile.write(enimg)
+        elif self.path == "/stream.bmp":
+            ext = self.path.split('.')[1]
+            self.send_response(200)
+            self.send_header('Age', 0)
+            self.send_header('Content-type', 'multipart/x-mixed-replace; boundary=frame')
+            self.end_headers()
+            while True:
+                cv_img = self.getFrame()
+                _, enimg = cv2.imencode('.'+ext, cv_img)
+
+                self.wfile.write(b'--frame\r\n')
+                self.send_header('Content-Type', 'image/'+ext)
+                self.send_header('Content-Length', len(enimg))
+                self.end_headers()
+                self.wfile.write(enimg)
+                self.wfile.write(b'\r\n')
         else:
             http.server.SimpleHTTPRequestHandler.do_GET(self)
 
