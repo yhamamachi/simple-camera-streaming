@@ -27,8 +27,6 @@ RESIZE = False
 OPTIMIZE = False
 W = int(os.environ.get("CAM_W")) if os.environ.get("CAM_W") is not None else 640
 H = int(os.environ.get("CAM_H")) if os.environ.get("CAM_H") is not None else 480
-X = 0
-Y = 0
 CAM_NUM = int(os.environ.get("CAM_NUM")) if os.environ.get("CAM_NUM") is not None else 0
 cap = cv2.VideoCapture(CAM_NUM)
 
