@@ -14,6 +14,8 @@ import socket
 import os
 import sys
 import cv2
+import datetime
+import numpy as np
 
 #HOST = [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]
 HOST = "0.0.0.0"
@@ -27,24 +29,61 @@ W = 640
 H = 480
 X = 0
 Y = 0
-CAM_NUM = 0
-
+CAM_NUM = 99
 cap = cv2.VideoCapture(CAM_NUM)
 
 # FPS related variables
 SHOW_FPS_FLAG = True
 counter = 0
-prev_sec = 0
 sec = 0
+prev_sec = 0
 prev_fps = 0
+g_frame_counter = 0
 
 class VNCServer(http.server.SimpleHTTPRequestHandler):
+    testFlag = False
+    def __init__(self, request, client_address, server):
+        super().__init__(request, client_address, server)
+
     def server_bind(self):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(self.server_address)
 
+    def generateDummyFrame(self):
+        global g_frame_counter
+        image = np.zeros((H,W,3), np.uint8)
+        g_frame_counter += 1
+        output_text = [
+                "Hello world",
+                "  Python OpenCV",
+                "CurrentTime:",
+                "  {}".format(datetime.datetime.now()),
+                "FrameCount:",
+                "  {}".format(g_frame_counter),
+        ]
+        text_color = (0,255,0) #( B,G,R ) => Green
+        for idx, text in enumerate(output_text):
+            text_scale = 1
+            xoffset = 20
+            yoffset = (idx+3) * 50*text_scale
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            thickness = 2
+            cv2.putText(image, text, (xoffset, yoffset) ,font ,text_scale ,text_color ,thickness ,cv2.LINE_AA)
+        return image
+
     def getFrame(self):
-        _, output = cap.read()
+        if self.testFlag is False:
+            _, output = cap.read()
+        else: # is True
+            output = self.generateDummyFrame()
+        output = self.procFrame(output)
+        return output
+
+    def procFrame(self, cv_img):
+        global SHOW_FPS_FLAG
+        self.proc_fps()
+
+        output = cv_img
         if GRAYSCALE:
             output = cv2.cvtColor(output,cv2.COLOR_RGB2GRAY)
         if ROTATE:
@@ -52,52 +91,30 @@ class VNCServer(http.server.SimpleHTTPRequestHandler):
         if RESIZE:
             output = cv2.resize(output, dsize=(W,H) )
         if SHOW_FPS_FLAG is True:
-            # Write FPS in frame
-            global prev_fps
-            output_text = [
-                    "FPS: {}".format(prev_fps)
-            ]
-            text_color = (0,255,0) #( B,G,R ) => Green
-            for idx, text in enumerate(output_text):
-                text_scale = 2
-                xoffset = 20
-                yoffset = (idx+1) * 50*text_scale
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                thickness = 2
-                cv2.putText(output, text, (xoffset, yoffset)
-                        ,font ,text_scale ,text_color ,thickness ,cv2.LINE_AA)
+            output = self.writeFPSinFrame(output)
         return output
 
-    def do_GET(self):
-        global counter
-        global prev_sec
+    def writeFPSinFrame(self, cv_img):
         global prev_fps
-        self.path = self.path.split('?')[0]
-        if self.path == '/frame.jpg':
-            cv_img = self.getFrame()
-            self.send_response(200)
-            self.send_header('Content-Type', 'image/jpeg')
-            self.end_headers()
-            _, enimg = cv2.imencode('.jpg', cv_img, (cv2.IMWRITE_JPEG_QUALITY, QUALITY))
-            self.wfile.write(enimg)
-        elif self.path == '/frame.bmp':
-            cv_img = self.getFrame()
-            self.send_response(200)
-            self.send_header('Content-Type', 'image/bmp')
-            self.end_headers()
-            _, enimg = cv2.imencode('.bmp', cv_img)
-            self.wfile.write(enimg)
-        elif self.path == '/frame.png':
-            cv_img = self.getFrame()
-            self.send_response(200)
-            self.send_header('Content-Type', 'image/png')
-            self.end_headers()
-            _, enimg = cv2.imencode('.png', cv_img)
-            self.wfile.write(enimg)
-        else:
-            http.server.SimpleHTTPRequestHandler.do_GET(self)
-        # Framerate
-        import datetime
+        output_text = [
+                "FPS: {}".format(prev_fps)
+        ]
+        text_color = (0,255,0) #( B,G,R ) => Green
+        for idx, text in enumerate(output_text):
+            text_scale = 2
+            xoffset = 20
+            yoffset = (idx+1) * 50*text_scale
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            thickness = 2
+            cv2.putText(cv_img, text, (xoffset, yoffset)
+                    ,font ,text_scale ,text_color ,thickness ,cv2.LINE_AA)
+        return cv_img
+
+    def proc_fps(self):
+        global sec
+        global prev_sec
+        global counter
+        global prev_fps
         sec=datetime.datetime.today().time().second
         if prev_sec == sec:
             counter+=1
@@ -107,6 +124,28 @@ class VNCServer(http.server.SimpleHTTPRequestHandler):
             counter = 1
         prev_sec=sec
 
+    def do_GET(self):
+        self.path = self.path.split('?')[0]
+        basename = self.path.split('.')[0]
+        if basename == "/frame":
+            ext = self.path.split('.')[1]
+            cv_img = self.getFrame()
+            self.send_response(200)
+            self.send_header('Content-Type', 'image/'+ext)
+            self.end_headers()
+            #_enimg = ""
+            if ext == "jpeg":
+                _, enimg = cv2.imencode('.'+ext, cv_img, (cv2.IMWRITE_JPEG_QUALITY, QUALITY))
+            else:
+                _, enimg = cv2.imencode('.'+ext, cv_img)
+            self.wfile.write(enimg)
+        else:
+            http.server.SimpleHTTPRequestHandler.do_GET(self)
+
+    def log_message(self, format, *args):
+        print(args)
+        pass
+
 if __name__ == '__main__':
     if "--no-fps" in sys.argv:
         SHOW_FPS_FLAG = False
@@ -114,7 +153,7 @@ if __name__ == '__main__':
     socketserver.TCPServer.allow_reuse_address = True
     httpd = socketserver.TCPServer((HOST, PORT), VNCServer)
     httpd.allow_reuse_address = True
-    print('Kindle VNC Server started at http://%s:%s' % (HOST, PORT))
+    print('Server started at http://%s:%s' % (HOST, PORT))
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
