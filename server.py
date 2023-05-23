@@ -25,10 +25,18 @@ ROTATE = False
 GRAYSCALE = False
 RESIZE = False
 OPTIMIZE = False
+
 W = int(os.environ.get("CAM_W")) if os.environ.get("CAM_W") is not None else 640
 H = int(os.environ.get("CAM_H")) if os.environ.get("CAM_H") is not None else 480
 CAM_NUM = int(os.environ.get("CAM_NUM")) if os.environ.get("CAM_NUM") is not None else 0
+FOURCC = os.environ.get("CAM_FOURCC") if os.environ.get("CAM_FOURCC") is not None else "MJPG"
+FPS = int(os.environ.get("CAM_FPS")) if os.environ.get("CAM_FPS") is not None else 30
+
 cap = cv2.VideoCapture(CAM_NUM)
+cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(FOURCC[0], FOURCC[1], FOURCC[2], FOURCC[3]) )
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, W)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
+cap.set(cv2.CAP_PROP_FPS, FPS)
 
 # FPS related variables
 SHOW_FPS_FLAG = True
